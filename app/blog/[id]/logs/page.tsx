@@ -155,19 +155,19 @@ export default function BlogLogsPage() {
                     </div>
 
                     <div
-                      className="rounded-lg p-3 sm:p-4 cursor-pointer transition-colors border hover:bg-white/5"
+                      className="rounded-lg p-3 sm:p-4 cursor-pointer transition-colors border hover:bg-white/5 overflow-hidden"
                       style={{ background: "var(--bg-card)", borderColor: log.status === "rejected" ? "rgba(251, 191, 36, 0.3)" : "var(--border-color)" }}
                       onClick={() => toggleExpand(index)}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-secondary)" }}>
                           {new Date(log.timestamp).toLocaleTimeString()}
                         </span>
-                        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                        <span className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
                           {log.agent_name}
                         </span>
                         <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 whitespace-nowrap"
                           style={{
                             background: log.status === "completed" ? "rgba(74, 222, 128, 0.15)" : log.status === "error" ? "rgba(248, 113, 113, 0.15)" : log.status === "rejected" ? "rgba(251, 191, 36, 0.15)" : "rgba(74, 222, 128, 0.1)",
                             color: log.status === "completed" ? "#4ade80" : log.status === "error" ? "#f87171" : log.status === "rejected" ? "#fbbf24" : "#4ade80",
@@ -176,16 +176,16 @@ export default function BlogLogsPage() {
                           {log.status}
                         </span>
                         {log.retry_count > 0 && (
-                          <span className="text-xs text-amber-400 font-medium">
+                          <span className="text-xs text-amber-400 font-medium shrink-0">
                             (Retry {log.retry_count}/3)
                           </span>
                         )}
                         {duration && (
-                          <span className="text-xs ml-auto" style={{ color: "var(--text-secondary)" }}>
+                          <span className="text-xs sm:ml-auto shrink-0" style={{ color: "var(--text-secondary)" }}>
                             {duration}
                           </span>
                         )}
-                        <span style={{ color: "var(--text-secondary)" }}>
+                        <span className="ml-auto sm:ml-0 shrink-0" style={{ color: "var(--text-secondary)" }}>
                           {isExpanded ? (
                             <ChevronDown size={14} />
                           ) : (
@@ -195,13 +195,13 @@ export default function BlogLogsPage() {
                       </div>
 
                       {outputSummary && !isExpanded && (
-                        <p className="text-xs mt-1 ml-[72px]" style={{ color: "var(--text-secondary)" }}>
+                        <p className="text-xs mt-1 sm:ml-[72px]" style={{ color: "var(--text-secondary)" }}>
                           {outputSummary}
                         </p>
                       )}
 
                       {log.feedback && (
-                        <div className="flex items-center gap-2 mt-2 ml-[72px] p-2 rounded-md" style={{ background: "rgba(251, 191, 36, 0.08)" }}>
+                        <div className="flex items-center gap-2 mt-2 sm:ml-[72px] p-2 rounded-md" style={{ background: "rgba(251, 191, 36, 0.08)" }}>
                           <ArrowRight size={12} className="text-amber-400 shrink-0" />
                           <p className="text-xs text-amber-300 italic">
                             Feedback: &quot;{log.feedback}&quot;
@@ -210,7 +210,7 @@ export default function BlogLogsPage() {
                       )}
 
                       {isExpanded && (
-                        <div className="mt-3 ml-[72px] space-y-2">
+                        <div className="mt-3 sm:ml-[72px] space-y-2">
                           {log.input_data && (
                             <div>
                               <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>
