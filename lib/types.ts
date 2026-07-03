@@ -29,6 +29,43 @@ export interface AgentEvent {
   progress: number;
   timestamp: string;
   feedback_loop: FeedbackLoop | null;
+  details: AgentDetails | null;
+}
+
+export interface AgentDetails {
+  type: string;
+  // research
+  search_queries?: string[];
+  sources?: { url: string; title: string }[];
+  key_points?: string[];
+  topic?: string;
+  // narrative
+  section_count?: number;
+  sections?: string[];
+  gs_paper?: string;
+  subject?: string;
+  // writing
+  word_count?: number;
+  sections_written?: string[];
+  // fact_check
+  verified?: boolean;
+  claims_checked?: number;
+  issues?: { claim: string; problem: string; correction: string }[];
+  sources_used?: { url: string; title: string }[];
+  // humanize
+  title?: string;
+  changes_made?: string[];
+  // seo
+  seo_score?: number;
+  scores?: Record<string, number>;
+  improvements?: string[];
+  meta_description?: string;
+  tags?: string[];
+  // mcq
+  question_count?: number;
+  // images
+  image_count?: number;
+  images?: { alt: string; credit: string }[];
 }
 
 export interface FeedbackLoop {
