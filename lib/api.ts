@@ -57,6 +57,45 @@ export async function getBlogLogs(id: string): Promise<AgentLog[]> {
   return res.json();
 }
 
+export async function getQueue(): Promise<QueueItem[]> {
+  const res = await fetch(`${API_BASE}/api/blog/queue`);
+
+  if (!res.ok) {
+    return [];
+  }
+
+  return res.json();
+}
+
+export async function getBlogStatus(id: string): Promise<{ id: string; status: string; queue_position: number | null; topic: string }> {
+  const res = await fetch(`${API_BASE}/api/blog/${id}/status`);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch status");
+  }
+
+  return res.json();
+}
+
+export async function cancelBlog(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/blog/${id}/cancel`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || "Failed to cancel");
+  }
+}
+
 export function getStreamUrl(blogId: string): string {
   return `${API_BASE}/api/blog/stream/${blogId}`;
+}
+
+export interface QueueItem {
+  id: string;
+  topic: string;
+  status: string;
+  created_at: string;
+  position: number;
 }

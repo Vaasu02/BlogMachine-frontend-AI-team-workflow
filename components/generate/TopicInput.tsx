@@ -15,6 +15,7 @@ export default function TopicInput({ onSubmit, disabled }: TopicInputProps) {
     e.preventDefault();
     if (topic.trim() && !disabled) {
       onSubmit(topic.trim());
+      setTopic("");
     }
   };
 

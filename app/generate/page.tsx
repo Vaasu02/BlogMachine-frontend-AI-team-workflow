@@ -1,116 +1,99 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import TopicInput from "@/components/generate/TopicInput";
 import AgentStream from "@/components/generate/AgentStream";
 import AgentDetails from "@/components/generate/AgentDetails";
+import GenerationQueue from "@/components/generate/GenerationQueue";
 import ProgressBar from "@/components/shared/ProgressBar";
-import ErrorState from "@/components/shared/ErrorState";
-import { useBlogGeneration } from "@/hooks/useBlogGeneration";
+import { useGenerationQueue } from "@/hooks/useGenerationQueue";
 import { useToast } from "@/components/shared/Toast";
-import { AgentEvent } from "@/lib/types";
-import { getStreamUrl } from "@/lib/api";
+import { cancelBlog } from "@/lib/api";
 
 export default function GeneratePage() {
   const router = useRouter();
   const { toast } = useToast();
   const {
-    isGenerating,
-    error,
-    progress,
-    events,
-    blogId,
+    generations,
+    setGenerations,
+    activeGeneration,
+    activeId,
+    setActiveId,
     startGeneration,
-    processEvent,
-  } = useBlogGeneration();
+  } = useGenerationQueue();
 
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const hasConnected = useRef(false);
   const detailsEndRef = useRef<HTMLDivElement>(null);
-
-  const handleEvent = useCallback(
-    (event: AgentEvent) => {
-      processEvent(event);
-      if (event.status === "completed" && event.current_agent === "system") {
-        toast("Blog generated successfully!", "success");
-        setTimeout(() => {
-          router.push(`/blog/${event.blog_id}`);
-        }, 1500);
-      }
-      if (event.status === "failed") {
-        toast("Blog generation failed", "error");
-      }
-    },
-    [processEvent, router, toast]
-  );
-
-  useEffect(() => {
-    if (!blogId || hasConnected.current) return;
-    hasConnected.current = true;
-
-    const url = getStreamUrl(blogId);
-    const es = new EventSource(url);
-    eventSourceRef.current = es;
-
-    const eventTypes = ["running", "completed", "failed", "feedback", "error", "warning"];
-
-    eventTypes.forEach((type) => {
-      es.addEventListener(type, (e) => {
-        try {
-          const data = JSON.parse((e as MessageEvent).data) as AgentEvent;
-          handleEvent(data);
-        } catch {
-          // ignore parse errors
-        }
-      });
-    });
-
-    es.onerror = () => {
-      es.close();
-    };
-
-    return () => {
-      es.close();
-    };
-  }, [blogId, handleEvent]);
-
-  useEffect(() => {
-    return () => {
-      hasConnected.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (detailsEndRef.current) {
       detailsEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [events]);
+  }, [activeGeneration?.events]);
+
+  useEffect(() => {
+    if (activeGeneration?.status === "completed") {
+      toast("Blog generated successfully!", "success");
+      setTimeout(() => {
+        router.push(`/blog/${activeGeneration.id}`);
+      }, 1500);
+    }
+    if (activeGeneration?.status === "failed") {
+      toast("Blog generation failed", "error");
+    }
+  }, [activeGeneration?.status, activeGeneration?.id, router, toast]);
 
   const handleGenerate = async (topic: string) => {
-    toast("Generation started", "info");
-    startGeneration(topic);
+    try {
+      await startGeneration(topic);
+      toast("Blog queued for generation", "info");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to start", "error");
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    try {
+      await cancelBlog(id);
+      toast("Generation cancelled", "info");
+      // Update local state immediately
+      setGenerations((prev: typeof generations) =>
+        prev.map((gen) =>
+          gen.id === id ? { ...gen, status: "failed" as const } : gen
+        )
+      );
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to cancel", "error");
+    }
   };
 
   return (
     <>
       <Header title="Generate Blog" />
       <div className="p-4 sm:p-6 max-w-6xl mx-auto">
-        {/* Topic Input */}
+        {/* Topic Input — always enabled */}
         <div className="rounded-xl border p-4 sm:p-6 mb-4" style={{ background: "var(--bg-card)", borderColor: "var(--border-color)" }}>
-          <TopicInput onSubmit={handleGenerate} disabled={isGenerating} />
-          {error && (
-            <ErrorState
-              title="Generation Failed"
-              message={error}
-              onRetry={() => window.location.reload()}
-            />
-          )}
+          <TopicInput onSubmit={handleGenerate} disabled={false} />
         </div>
 
-        {/* Two-column layout when generating */}
-        {events.length > 0 && (
+        {/* Queue panel */}
+        {generations.length > 0 && (
+          <div className="rounded-xl border p-4 mb-4" style={{ background: "var(--bg-card)", borderColor: "var(--border-color)" }}>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+              Generations ({generations.length})
+            </h3>
+            <GenerationQueue
+              generations={generations}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onCancel={handleCancel}
+            />
+          </div>
+        )}
+
+        {/* Two-column detail view for active generation */}
+        {activeGeneration && activeGeneration.events.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in">
             {/* Left: Progress stream */}
             <div className="lg:col-span-4">
@@ -120,11 +103,11 @@ export default function GeneratePage() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Progress</h3>
-                  <span className="text-xs font-mono" style={{ color: "#4ade80" }}>{progress}%</span>
+                  <span className="text-xs font-mono" style={{ color: "#4ade80" }}>{activeGeneration.progress}%</span>
                 </div>
-                <ProgressBar progress={progress} />
+                <ProgressBar progress={activeGeneration.progress} />
                 <div className="mt-4">
-                  <AgentStream events={events} />
+                  <AgentStream events={activeGeneration.events} />
                 </div>
               </div>
             </div>
@@ -135,10 +118,20 @@ export default function GeneratePage() {
                 className="rounded-xl border p-4 sm:p-6"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-color)" }}
               >
-                <AgentDetails events={events} />
+                <AgentDetails events={activeGeneration.events} />
                 <div ref={detailsEndRef} />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Queued state - no events yet */}
+        {activeGeneration && activeGeneration.events.length === 0 && activeGeneration.status === "queued" && (
+          <div className="rounded-xl border p-6 text-center animate-fade-in" style={{ background: "var(--bg-card)", borderColor: "var(--border-color)" }}>
+            <div className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              Queued — waiting for worker to pick up...
+            </p>
           </div>
         )}
       </div>
