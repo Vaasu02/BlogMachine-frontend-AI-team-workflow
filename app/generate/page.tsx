@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/layout/Header";
 import TopicInput from "@/components/generate/TopicInput";
 import AgentStream from "@/components/generate/AgentStream";
@@ -13,7 +13,6 @@ import { useToast } from "@/components/shared/Toast";
 import { cancelBlog } from "@/lib/api";
 
 export default function GeneratePage() {
-  const router = useRouter();
   const { toast } = useToast();
   const {
     generations,
@@ -35,14 +34,11 @@ export default function GeneratePage() {
   useEffect(() => {
     if (activeGeneration?.status === "completed") {
       toast("Blog generated successfully!", "success");
-      setTimeout(() => {
-        router.push(`/blog/${activeGeneration.id}`);
-      }, 1500);
     }
     if (activeGeneration?.status === "failed") {
       toast("Blog generation failed", "error");
     }
-  }, [activeGeneration?.status, activeGeneration?.id, router, toast]);
+  }, [activeGeneration?.status, activeGeneration?.id, toast]);
 
   const handleGenerate = async (topic: string) => {
     try {
@@ -106,6 +102,24 @@ export default function GeneratePage() {
                   <span className="text-xs font-mono" style={{ color: "#4ade80" }}>{activeGeneration.progress}%</span>
                 </div>
                 <ProgressBar progress={activeGeneration.progress} />
+                {activeGeneration.status === "completed" && (
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Link
+                      href={`/blog/${activeGeneration.id}`}
+                      className="block w-full text-center px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                      style={{ background: "#174D38" }}
+                    >
+                      View Blog
+                    </Link>
+                    <Link
+                      href={`/blog/${activeGeneration.id}/logs`}
+                      className="block w-full text-center px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      style={{ color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+                    >
+                      View Execution Logs
+                    </Link>
+                  </div>
+                )}
                 <div className="mt-4">
                   <AgentStream events={activeGeneration.events} />
                 </div>

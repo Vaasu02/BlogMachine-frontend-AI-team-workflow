@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import ErrorState from "@/components/shared/ErrorState";
-import { PenTool, CheckCircle, XCircle, BarChart3 } from "lucide-react";
+import { PenTool, CheckCircle, XCircle, BarChart3, Clock, Zap } from "lucide-react";
 import { getBlogs } from "@/lib/api";
 import { Blog } from "@/lib/types";
 
 export default function DashboardPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [stats, setStats] = useState({ total: 0, completed: 0, failed: 0, avgSeo: 0 });
+  const [todayBlogs, setTodayBlogs] = useState<Blog[]>([]);
+  const [stats, setStats] = useState({ total: 0, completed: 0, failed: 0, avgSeo: 0, thisWeek: 0, successRate: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -19,7 +20,7 @@ export default function DashboardPage() {
     setError(false);
     try {
       const data = await getBlogs(0, 100);
-      setBlogs(data.blogs.slice(0, 5));
+      setBlogs(data.blogs);
 
       const completed = data.blogs.filter((b) => b.status === "completed");
       const failed = data.blogs.filter((b) => b.status === "failed");
@@ -31,11 +32,21 @@ export default function DashboardPage() {
           ? Math.round(seoScores.reduce((a, b) => a + b, 0) / seoScores.length)
           : 0;
 
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const todayList = data.blogs.filter((b) => new Date(b.created_at) >= today);
+      const thisWeekList = data.blogs.filter((b) => new Date(b.created_at) >= weekAgo);
+
+      setTodayBlogs(todayList);
       setStats({
         total: data.total,
         completed: completed.length,
         failed: failed.length,
         avgSeo,
+        thisWeek: thisWeekList.length,
+        successRate: data.total > 0 ? Math.round((completed.length / data.total) * 100) : 0,
       });
     } catch {
       setError(true);
@@ -60,11 +71,13 @@ export default function DashboardPage() {
           />
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
               <StatCard label="Total Blogs" value={stats.total} color="green" loading={loading} />
               <StatCard label="Completed" value={stats.completed} color="green" loading={loading} />
               <StatCard label="Failed" value={stats.failed} color="maroon" loading={loading} />
-              <StatCard label="Avg SEO" value={stats.avgSeo} color="green" loading={loading} />
+              <StatCard label="Avg SEO" value={stats.avgSeo} color="green" loading={loading} suffix="/100" />
+              <StatCard label="This Week" value={stats.thisWeek} color="green" loading={loading} />
+              <StatCard label="Success Rate" value={stats.successRate} color="green" loading={loading} suffix="%" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
@@ -92,35 +105,45 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>View All Blogs</h3>
-                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Browse history and stats</p>
+                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Browse full history with filters</p>
                 </div>
               </Link>
             </div>
 
+            {/* Today's Activity */}
             <div className="rounded-xl border p-4 sm:p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border-color)" }}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Recent Blogs</h3>
-                <Link href="/history" className="text-sm hover:underline" style={{ color: "#4ade80" }}>
-                  View All
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Zap size={16} style={{ color: "#4ade80" }} />
+                  <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Today&apos;s Activity</h3>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full" style={{ background: "rgba(74, 222, 128, 0.1)", color: "#4ade80" }}>
+                  {todayBlogs.length} blog{todayBlogs.length !== 1 ? "s" : ""} today
+                </span>
               </div>
 
               {loading ? (
                 <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-12 rounded-lg animate-pulse" style={{ background: "var(--bg-primary)" }} />
+                    <div key={i} className="h-14 rounded-lg animate-pulse" style={{ background: "var(--bg-primary)" }} />
                   ))}
                 </div>
-              ) : blogs.length === 0 ? (
-                <p className="text-sm text-center py-6" style={{ color: "var(--text-secondary)" }}>
-                  No blogs yet. Generate your first blog!
-                </p>
+              ) : todayBlogs.length === 0 ? (
+                <div className="text-center py-8">
+                  <Clock size={32} className="mx-auto mb-3" style={{ color: "var(--text-secondary)" }} />
+                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    No blogs generated today yet.
+                  </p>
+                  <Link href="/generate" className="text-sm mt-2 inline-block hover:underline" style={{ color: "#4ade80" }}>
+                    Generate one now
+                  </Link>
+                </div>
               ) : (
                 <div className="space-y-2">
-                  {blogs.map((blog) => (
+                  {todayBlogs.map((blog) => (
                     <Link
                       key={blog.id}
-                      href={`/blog/${blog.id}`}
+                      href={blog.status === "completed" ? `/blog/${blog.id}` : `/blog/${blog.id}/logs`}
                       className="flex items-center justify-between p-3 rounded-lg transition-colors hover:bg-white/5"
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -131,21 +154,30 @@ export default function DashboardPage() {
                         ) : (
                           <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin shrink-0" />
                         )}
-                        <span className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
-                          {blog.title || blog.topic}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="text-sm truncate block" style={{ color: "var(--text-primary)" }}>
+                            {blog.title || blog.topic}
+                          </span>
+                          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                            {new Date(blog.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                            {blog.subject && ` · ${blog.subject}`}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-3">
-                        {blog.seo_score && (
-                          <span className="text-xs font-medium text-green-400">
-                            {blog.seo_score}
+                        {blog.seo_score ? (
+                          <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "rgba(74, 222, 128, 0.1)", color: "#4ade80" }}>
+                            SEO {blog.seo_score}
                           </span>
-                        )}
-                        <span className="text-xs hidden sm:inline" style={{ color: "var(--text-secondary)" }}>
-                          {new Date(blog.created_at).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                          })}
+                        ) : null}
+                        <span
+                          className="text-xs px-2 py-0.5 rounded font-medium"
+                          style={{
+                            background: blog.status === "completed" ? "rgba(74, 222, 128, 0.1)" : "rgba(248, 113, 113, 0.1)",
+                            color: blog.status === "completed" ? "#4ade80" : "#f87171",
+                          }}
+                        >
+                          {blog.status}
                         </span>
                       </div>
                     </Link>
@@ -165,11 +197,13 @@ function StatCard({
   value,
   color,
   loading,
+  suffix,
 }: {
   label: string;
   value: number;
   color: string;
   loading?: boolean;
+  suffix?: string;
 }) {
   const bg = color === "maroon" ? "var(--accent-maroon)" : "var(--accent-green)";
 
@@ -179,7 +213,9 @@ function StatCard({
       {loading ? (
         <div className="h-8 w-12 rounded mt-1 animate-pulse" style={{ background: "var(--bg-primary)" }} />
       ) : (
-        <p className="text-xl sm:text-2xl font-bold mt-1" style={{ color: bg === "var(--accent-maroon)" ? "#f87171" : "#4ade80" }}>{value}</p>
+        <p className="text-xl sm:text-2xl font-bold mt-1" style={{ color: bg === "var(--accent-maroon)" ? "#f87171" : "#4ade80" }}>
+          {value}{suffix || ""}
+        </p>
       )}
     </div>
   );
